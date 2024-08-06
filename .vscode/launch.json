@@ -8,10 +8,10 @@
             "name": "(Windows) Launch",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceRoot}/rust-chip-8/target/debug/rust-chip-8.exe",
+            "program": "${workspaceRoot}/target/debug/rust-chip-8.exe",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${workspaceRoot}/rust-chip-8",
+            "cwd": "${workspaceRoot}",
             "environment": [],
             "externalConsole": true,
             "preLaunchTask": "rust: cargo build"
