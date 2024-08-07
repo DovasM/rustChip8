@@ -36,7 +36,7 @@ impl Ram {
     pub fn write_byte(&mut self, addr: u16, byte: u8) {
         self.mem[addr as usize] = byte;
     }
-    pub fn read_byte(&mut self, addr: u16, byte: u8) -> u8 {
+    pub fn read_byte(&mut self, addr: u16) -> u8 {
         self.mem[addr as usize]
     }
 }
