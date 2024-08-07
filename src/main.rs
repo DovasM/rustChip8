@@ -1,8 +1,11 @@
 use chip8::Chip8;
 use std::{fs::File, io::Read};
 
+mod bus;
 mod chip8;
 mod cpu;
+mod display;
+mod keyboard;
 mod ram;
 
 fn main() {
