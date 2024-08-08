@@ -31,14 +31,21 @@ impl Display {
             coord_x += 1;
             b <<= 1;
         }
-        self.present();
         flipped
     }
 
-    fn present(&self) {
+    pub fn clear(&mut self) {
         for y in 0..HEIGHT {
             for x in 0..WIDTH {
-                if self.screen[x][y] == 0 {
+                self.screen[y][x] = 0;
+            }
+        }
+    }
+
+    pub fn present(&self) {
+        for y in 0..HEIGHT {
+            for x in 0..WIDTH {
+                if self.screen[y][x] == 0 {
                     print!("_");
                 } else {
                     print!("#");

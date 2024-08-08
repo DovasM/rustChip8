@@ -32,4 +32,12 @@ impl Bus {
     pub fn key_pressed(&self, key_code: u8) -> bool {
         self.keyboard.key_pressed(key_code)
     }
+
+    pub fn present_screen(&self) {
+        self.display.present();
+    }
+
+    pub fn clear_screen(&mut self) {
+        self.display.clear();
+    }
 }

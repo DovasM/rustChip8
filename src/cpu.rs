@@ -27,8 +27,8 @@ impl Cpu {
         let lo = bus.ram_read_byte(self.pc + 1) as u16;
         let instruction: u16 = (hi << 8) | lo;
         println!(
-            "instruction read:{:#X} hi:{:#X} lo:{:#X}",
-            instruction, hi, lo
+            "instruction read:{:#X}:{:#X} hi:{:#X} lo:{:#X}",
+            self.pc, instruction, hi, lo
         );
 
         let nnn = instruction & 0x0FFF;
@@ -45,6 +45,20 @@ impl Cpu {
         self.prev_pc = self.pc;
 
         match (instruction & 0xF000) >> 12 {
+            0x0 => {
+                match instruction {
+                    0x00E0 => {
+                        // Clear screen
+                        bus.clear_screen();
+                        self.pc += 2;
+                    }
+                    0x00EE => {
+                        // Return from subroutine
+                        self.pc = self.ret_stack.pop().unwrap();
+                    }
+                    _ => panic!("Unknown instruction: {:#X}:{:#X}", self.pc, instruction),
+                }
+            }
             0x1 => {
                 // Goto to nnn
                 self.pc = nnn;
@@ -75,11 +89,68 @@ impl Cpu {
                 self.pc += 2;
             }
             0x8 => {
+                let vx = self.read_vx(x);
+                let vy = self.read_vx(y);
                 match n {
                     0x0 => {
                         // Set VX to VY
-                        let vy = self.read_vx(y);
                         self.write_vx(x, vy);
+                        self.pc += 2;
+                    }
+                    0x1 => {
+                        // Set VX to VX | VY
+                        self.write_vx(x, vx | vy);
+                        self.pc += 2;
+                    }
+
+                    0x2 => {
+                        // Set VX to VX & VY
+                        self.write_vx(x, vx & vy);
+                        self.pc += 2;
+                    }
+                    0x3 => {
+                        // Set VX to VX ^ VY
+                        self.write_vx(x, vx ^ vy);
+                        self.pc += 2;
+                    }
+                    0x4 => {
+                        // Add VY to VX
+                        let sum = vx as u16 + vy as u16;
+                        if sum > 0xFF {
+                            self.write_vx(0xF, 1);
+                        }
+                        self.pc += 2;
+                    }
+                    0x5 => {
+                        // Subtract VY from VX
+                        let diff: i8 = vx as i8 - vy as i8;
+                        self.write_vx(x, diff as u8);
+                        if diff < 0 {
+                            self.write_vx(0xF, 1);
+                        }
+                        self.pc += 2;
+                    }
+                    0x6 => {
+                        // Shift VX right by 1
+                        self.write_vx(0xF, vy & 0x1);
+                        self.write_vx(y, vy >> 1);
+                        self.write_vx(x, vy >> 1);
+                        self.pc += 2;
+                    }
+                    0x7 => {
+                        // Set VX to VY - VX
+                        let diff: i8 = vy as i8 - vx as i8;
+                        self.write_vx(x, diff as u8);
+                        if diff < 0 {
+                            self.write_vx(0xF, 1);
+                        }
+                        self.pc += 2;
+                    }
+                    0xE => {
+                        // Shift VX left by 1
+                        self.write_vx(0xF, vy >> 7);
+                        self.write_vx(y, vy << 1);
+                        self.write_vx(x, vy << 1);
                         self.pc += 2;
                     }
                     _ => panic!("Unknown instruction: {:#X}:{:#X}", self.pc, instruction),
@@ -95,10 +166,19 @@ impl Cpu {
                     0xA1 => {
                         // Skip next instruction if key in VX is not pressed
                         let key = self.read_vx(x);
-                        if bus.key_pressed(key) {
-                            self.pc += 2; // i think this is wrong. change to 4 later
-                        } else {
+                        if !bus.key_pressed(key) {
                             self.pc += 4;
+                        } else {
+                            self.pc += 2;
+                        }
+                    }
+                    0x9E => {
+                        // Skip next instruction if key in VX is pressed
+                        let key = self.read_vx(x);
+                        if bus.key_pressed(key) {
+                            self.pc += 4;
+                        } else {
+                            self.pc += 2;
                         }
                     }
                     _ => panic!("Unknown instruction: {:#X}:{:#X}", self.pc, instruction),
@@ -135,6 +215,7 @@ impl Cpu {
         } else {
             self.write_vx(0xF, 0);
         }
+        // bus.present_screen();
     }
 
     fn write_vx(&mut self, x: u8, value: u8) {
