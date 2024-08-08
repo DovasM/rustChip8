@@ -190,10 +190,15 @@ impl Cpu {
                 self.pc += 2;
             }
             0xF => {
-                // I += VX
-                let vx = self.read_vx(x);
-                self.i += vx as u16;
-                self.pc += 2;
+                match nn {
+                    0x1E => {
+                        // I += VX
+                        let vx = self.read_vx(x);
+                        self.i += vx as u16;
+                        self.pc += 2;
+                    }
+                    _ => panic!("Unknown instruction: {:#X}:{:#X}", self.pc, instruction),
+                }
             }
 
             _ => panic!("Unknown instruction: {:#X}:{:#X}", self.pc, instruction),
@@ -215,7 +220,7 @@ impl Cpu {
         } else {
             self.write_vx(0xF, 0);
         }
-        // bus.present_screen();
+        bus.present_screen();
     }
 
     fn write_vx(&mut self, x: u8, value: u8) {
