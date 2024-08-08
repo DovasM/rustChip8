@@ -191,6 +191,26 @@ impl Cpu {
             }
             0xF => {
                 match nn {
+                    0x07 => {
+                        // Set VX to delay timer
+                        let delay_timer = bus.get_delay_timer();
+                        self.write_vx(x, delay_timer);
+                        self.pc += 2;
+                    }
+                    0x15 => {
+                        // Set delay timer to VX
+                        let vx = self.read_vx(x);
+                        bus.set_delay_timer(vx);
+                        self.pc += 2;
+                    }
+                    0x65 => {
+                        // Load V0 to VX from memory starting at I
+                        for index in 0..x + 1 {
+                            let value = bus.ram_read_byte(self.i + index as u16);
+                            self.write_vx(index, value);
+                        }
+                        self.pc += 2;
+                    }
                     0x1E => {
                         // I += VX
                         let vx = self.read_vx(x);
