@@ -27,49 +27,51 @@ impl Cpu {
         let lo = bus.ram_read_byte(self.pc + 1) as u16;
         let instruction: u16 = (hi << 8) | lo;
         println!(
-            "instruction read:{:#X}:{:#X} hi:{:#X} lo:{:#X}",
+            "Instruction read {:#X}:{:#X}: hi{:#X} lo:{:#X} ",
             self.pc, instruction, hi, lo
         );
 
         let nnn = instruction & 0x0FFF;
-        let nn = (instruction & 0x00FF) as u8;
-        let n = (instruction & 0x000F) as u8;
+        let nn = (instruction & 0x0FF) as u8;
+        let n = (instruction & 0x00F) as u8;
         let x = ((instruction & 0x0F00) >> 8) as u8;
         let y = ((instruction & 0x00F0) >> 4) as u8;
-
-        println!("nnn:{:?} nn:{:?} n:{:?} x:{} y:{}", nnn, nn, n, x, y);
+        println!("nnn={:?}, nn={:?}, n={:?} x={}, y={}", nnn, nn, n, x, y);
 
         if self.prev_pc == self.pc {
-            panic!("Infinite loop detected at {:#X}. INCREMENT PC!", self.pc);
+            panic!("Please increment PC!");
         }
         self.prev_pc = self.pc;
 
         match (instruction & 0xF000) >> 12 {
             0x0 => {
-                match instruction {
+                match nn {
                     0xE0 => {
-                        // Clear screen
                         bus.clear_screen();
                         self.pc += 2;
                     }
                     0xEE => {
-                        // Return from subroutine
-                        self.pc = self.ret_stack.pop().unwrap();
+                        //return from subroutine
+                        let addr = self.ret_stack.pop().unwrap();
+                        self.pc = addr;
                     }
-                    _ => panic!("Unknown instruction: {:#X}:{:#X}", self.pc, instruction),
+                    _ => panic!(
+                        "Unrecognized 0x00** instruction {:#X}:{:#X}",
+                        self.pc, instruction
+                    ),
                 }
             }
             0x1 => {
-                // Goto to nnn
+                //goto nnn;
                 self.pc = nnn;
             }
             0x2 => {
-                // Call subroutine at nnn
+                //Call subroutine at address NNN
                 self.ret_stack.push(self.pc + 2);
                 self.pc = nnn;
             }
             0x3 => {
-                // Skip next instruction if VX == nn
+                //if(Vx==NN)
                 let vx = self.read_vx(x);
                 if vx == nn {
                     self.pc += 4;
@@ -78,70 +80,59 @@ impl Cpu {
                 }
             }
             0x6 => {
-                // Set VX to nn
+                //vx = nn
                 self.write_vx(x, nn);
                 self.pc += 2;
             }
             0x7 => {
-                // Add nn to VX
                 let vx = self.read_vx(x);
                 self.write_vx(x, vx.wrapping_add(nn));
                 self.pc += 2;
             }
             0x8 => {
-                let vx = self.read_vx(x);
                 let vy = self.read_vx(y);
+                let vx = self.read_vx(x);
+
                 match n {
-                    0x0 => {
-                        // Set VX to VY
+                    0 => {
+                        // Vx=Vy
                         self.write_vx(x, vy);
                     }
-                    0x2 => {
-                        // Set VX to VX & VY
+                    2 => {
+                        // Vx=Vx&Vy
                         self.write_vx(x, vx & vy);
                     }
-                    0x3 => {
-                        // Set VX to VX ^ VY
+                    3 => {
+                        // Vx=Vx^Vy
                         self.write_vx(x, vx ^ vy);
                     }
-                    0x4 => {
-                        // Add VY to VX
-                        let sum = vx as u16 + vy as u16;
+                    4 => {
+                        //	Vx += Vy
+                        let sum: u16 = vx as u16 + vy as u16;
+                        self.write_vx(x, sum as u8);
                         if sum > 0xFF {
                             self.write_vx(0xF, 1);
                         }
                     }
-                    0x5 => {
-                        // Subtract VY from VX
+                    5 => {
                         let diff: i8 = vx as i8 - vy as i8;
                         self.write_vx(x, diff as u8);
                         if diff < 0 {
                             self.write_vx(0xF, 1);
                         }
                     }
-                    0x6 => {
-                        // Shift VX right by 1
+                    6 => {
+                        // Vx=Vy=Vy>>1
                         self.write_vx(0xF, vy & 0x1);
                         self.write_vx(y, vy >> 1);
                         self.write_vx(x, vy >> 1);
                     }
-                    // 0x7 => {
-                    //     // Set VX to VY - VX
-                    //     let diff: i8 = vy as i8 - vx as i8;
-                    //     self.write_vx(x, diff as u8);
-                    //     if diff < 0 {
-                    //         self.write_vx(0xF, 1);
-                    //     }
-                    // }
-                    // 0xE => {
-                    //     // Shift VX left by 1
-                    //     self.write_vx(0xF, vy >> 7);
-                    //     self.write_vx(y, vy << 1);
-                    //     self.write_vx(x, vy << 1);
+                    _ => panic!(
+                        "Unrecognized 0x8XY* instruction {:#X}:{:#X}",
+                        self.pc, instruction
+                    ),
+                };
 
-                    // }
-                    _ => panic!("Unknown instruction: {:#X}:{:#X}", self.pc, instruction),
-                }
                 self.pc += 2;
             }
             0xD => {
@@ -171,30 +162,28 @@ impl Cpu {
                             self.pc += 2;
                         }
                     }
-                    _ => panic!("Unknown instruction: {:#X}:{:#X}", self.pc, instruction),
-                }
+                    _ => panic!(
+                        "Unrecognized 0xEX** instruction {:#X}:{:#X}",
+                        self.pc, instruction
+                    ),
+                };
             }
             0xA => {
-                // Set I to nnn
+                //I = NNN
                 self.i = nnn;
                 self.pc += 2;
             }
             0xF => {
                 match nn {
                     0x07 => {
-                        // Set VX to delay timer
-                        let delay_timer = bus.get_delay_timer();
-                        self.write_vx(x, delay_timer);
+                        self.write_vx(x, bus.get_delay_timer());
                         self.pc += 2;
                     }
                     0x15 => {
-                        // Set delay timer to VX
-                        let vx = self.read_vx(x);
-                        bus.set_delay_timer(vx);
+                        bus.set_delay_timer(self.read_vx(x));
                         self.pc += 2;
                     }
                     0x65 => {
-                        // Load V0 to VX from memory starting at I
                         for index in 0..x + 1 {
                             let value = bus.ram_read_byte(self.i + index as u16);
                             self.write_vx(index, value);
@@ -207,11 +196,14 @@ impl Cpu {
                         self.i += vx as u16;
                         self.pc += 2;
                     }
-                    _ => panic!("Unknown instruction: {:#X}:{:#X}", self.pc, instruction),
+                    _ => panic!(
+                        "Unrecognized 0xF instruction {:#X}:{:#X}",
+                        self.pc, instruction
+                    ),
                 }
             }
 
-            _ => panic!("Unknown instruction: {:#X}:{:#X}", self.pc, instruction),
+            _ => panic!("Unrecognized instruction {:#X}:{:#X}", self.pc, instruction),
         }
     }
 

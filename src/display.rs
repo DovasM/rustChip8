@@ -21,8 +21,9 @@ impl Display {
         let mut coord_x = x as usize;
         let coord_y = y as usize;
         let mut b = byte;
-        let index = Display::get_index_from_coords(coord_x, coord_y);
+
         for _ in 0..8 {
+            let index = Display::get_index_from_coords(coord_x, coord_y);
             match (b & 0b1000_0000) >> 7 {
                 0 => {
                     if self.screen[index] == 1 {
@@ -40,7 +41,7 @@ impl Display {
     }
 
     pub fn clear(&mut self) {
-        for pixel in &mut self.screen {
+        for pixel in self.screen.iter_mut() {
             *pixel = 0;
         }
     }
@@ -48,12 +49,14 @@ impl Display {
     pub fn present(&self) {
         for index in 0..self.screen.len() {
             let pixel = self.screen[index];
+
             if index % WIDTH == 0 {
                 print!("\n");
             }
+
             match pixel {
                 0 => print!("_"),
-                1 => print!("#"),
+                1 => print!("*"),
                 _ => unreachable!(),
             };
         }
