@@ -47,12 +47,12 @@ impl Cpu {
         match (instruction & 0xF000) >> 12 {
             0x0 => {
                 match instruction {
-                    0x00E0 => {
+                    0xE0 => {
                         // Clear screen
                         bus.clear_screen();
                         self.pc += 2;
                     }
-                    0x00EE => {
+                    0xEE => {
                         // Return from subroutine
                         self.pc = self.ret_stack.pop().unwrap();
                     }
@@ -79,7 +79,7 @@ impl Cpu {
             }
             0x6 => {
                 // Set VX to nn
-                self.write_vx(x, nn as u8);
+                self.write_vx(x, nn);
                 self.pc += 2;
             }
             0x7 => {
@@ -95,23 +95,14 @@ impl Cpu {
                     0x0 => {
                         // Set VX to VY
                         self.write_vx(x, vy);
-                        self.pc += 2;
                     }
-                    0x1 => {
-                        // Set VX to VX | VY
-                        self.write_vx(x, vx | vy);
-                        self.pc += 2;
-                    }
-
                     0x2 => {
                         // Set VX to VX & VY
                         self.write_vx(x, vx & vy);
-                        self.pc += 2;
                     }
                     0x3 => {
                         // Set VX to VX ^ VY
                         self.write_vx(x, vx ^ vy);
-                        self.pc += 2;
                     }
                     0x4 => {
                         // Add VY to VX
@@ -119,7 +110,6 @@ impl Cpu {
                         if sum > 0xFF {
                             self.write_vx(0xF, 1);
                         }
-                        self.pc += 2;
                     }
                     0x5 => {
                         // Subtract VY from VX
@@ -128,37 +118,37 @@ impl Cpu {
                         if diff < 0 {
                             self.write_vx(0xF, 1);
                         }
-                        self.pc += 2;
                     }
                     0x6 => {
                         // Shift VX right by 1
                         self.write_vx(0xF, vy & 0x1);
                         self.write_vx(y, vy >> 1);
                         self.write_vx(x, vy >> 1);
-                        self.pc += 2;
                     }
-                    0x7 => {
-                        // Set VX to VY - VX
-                        let diff: i8 = vy as i8 - vx as i8;
-                        self.write_vx(x, diff as u8);
-                        if diff < 0 {
-                            self.write_vx(0xF, 1);
-                        }
-                        self.pc += 2;
-                    }
-                    0xE => {
-                        // Shift VX left by 1
-                        self.write_vx(0xF, vy >> 7);
-                        self.write_vx(y, vy << 1);
-                        self.write_vx(x, vy << 1);
-                        self.pc += 2;
-                    }
+                    // 0x7 => {
+                    //     // Set VX to VY - VX
+                    //     let diff: i8 = vy as i8 - vx as i8;
+                    //     self.write_vx(x, diff as u8);
+                    //     if diff < 0 {
+                    //         self.write_vx(0xF, 1);
+                    //     }
+                    // }
+                    // 0xE => {
+                    //     // Shift VX left by 1
+                    //     self.write_vx(0xF, vy >> 7);
+                    //     self.write_vx(y, vy << 1);
+                    //     self.write_vx(x, vy << 1);
+
+                    // }
                     _ => panic!("Unknown instruction: {:#X}:{:#X}", self.pc, instruction),
                 }
+                self.pc += 2;
             }
             0xD => {
                 // Draw sprite
-                self.debug_draw_sprite(bus, x, y, n);
+                let vx = self.read_vx(x);
+                let vy = self.read_vx(y);
+                self.debug_draw_sprite(bus, vx, vy, n);
                 self.pc += 2;
             }
             0xE => {
@@ -227,7 +217,6 @@ impl Cpu {
 
     fn debug_draw_sprite(&mut self, bus: &mut Bus, x: u8, y: u8, height: u8) {
         println!("Drawing sprite at ({}, {})", x, y);
-        let mut y_coord = y;
         let mut should_set_vf = false;
         for y in 0..height {
             let byte = bus.ram_read_byte(self.i + y as u16);
@@ -236,7 +225,7 @@ impl Cpu {
             }
         }
         if should_set_vf {
-            self.write_vx(0xF, 1);
+            self.write_vx(0xF, 0);
         } else {
             self.write_vx(0xF, 0);
         }
