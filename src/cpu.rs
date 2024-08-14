@@ -83,6 +83,15 @@ impl Cpu {
                     self.pc += 2;
                 }
             }
+            0x4 => {
+                //if(Vx!=NN)
+                let vx = self.read_vx(x);
+                if vx != nn {
+                    self.pc += 4;
+                } else {
+                    self.pc += 2;
+                }
+            }
             0x5 => {
                 //Skip next instruction if(Vx==Vy)
                 let vx = self.read_vx(x);
@@ -274,6 +283,7 @@ impl Cpu {
                             let value = bus.ram_read_byte(self.i + index as u16);
                             self.write_vx(index, value);
                         }
+                        self.i += x as u16 + 1;
                         self.pc += 2;
                     }
                     _ => panic!(

@@ -1,7 +1,6 @@
 use crate::bus::Bus;
 use crate::cpu::Cpu;
 use crate::cpu::PROGRAM_START;
-use minifb::Window;
 
 pub struct Chip8 {
     bus: Bus,
@@ -23,7 +22,6 @@ impl Chip8 {
     }
 
     pub fn run_instruction(&mut self) {
-        self.bus.tick();
         self.cpu.run_instruction(&mut self.bus);
         println!("Cpu state: {:#?}", self.cpu);
         println!("Bus state: {:#?}", self.bus);
